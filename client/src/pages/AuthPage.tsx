@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -10,36 +9,60 @@ import { CheckCircle, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+const API_BASE_URL = "http://localhost:3001/auth"; // Adjust this if your backend is running on another port
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState(""); // Added Name Field for Signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!isLogin && password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match",
-        variant: "destructive"
+  
+    try {
+      const endpoint = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/signup`;
+      const requestBody = isLogin ? { email, password } : { name, email, password };
+  
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
       });
-      return;
+  
+      const data = await response.json();
+      console.log("Response Data:", data); // Debugging line
+  
+      if (!response.ok) {
+        throw new Error(data.message || "Authentication failed");
+      }
+  
+      if (!data.userId) {
+        throw new Error("User ID not received from backend");
+      }
+  
+      // Store userId in local storage
+      localStorage.setItem("userId", data.userId);
+  
+      toast({
+        title: `${isLogin ? "Login" : "Signup"} successful!`,
+        description: "Redirecting to dashboard...",
+      });
+  
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1000);
+    } catch (error: any) {
+      toast({
+        title: "Authentication Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
-    
-    // Simulate successful auth
-    toast({
-      title: `${isLogin ? "Login" : "Signup"} successful!`,
-      description: "Redirecting to dashboard...",
-    });
-    
-    setTimeout(() => {
-      navigate("/dashboard");
-    }, 1000);
   };
+  
+  
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -119,55 +142,41 @@ const AuthPage = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
+                  {!isLogin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Name</Label>
                       <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required={!isLogin}
                         className="h-10"
                       />
                     </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="h-10"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="h-10"
-                      />
-                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-10"
+                    />
                   </div>
-                  <AnimatePresence>
-                    {!isLogin && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="space-y-2 overflow-hidden"
-                      >
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
-                        <div className="relative">
-                          <Input
-                            id="confirmPassword"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required={!isLogin}
-                            className="h-10"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                   <Button
                     type="submit"
                     className="w-full mt-6 hover:shadow-md transition-all"
